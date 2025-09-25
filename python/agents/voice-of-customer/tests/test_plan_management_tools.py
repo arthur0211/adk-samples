@@ -84,12 +84,25 @@ def test_store_plan_invalid_json_returns_error(tool_context) -> None:
     assert response["error"] == "plan_parsing_error"
     assert PLAN_STATE_KEY not in tool_context.state
 
+    narrated = plan_management.format_plan_tool_status(
+        "store_supervisor_plan", response
+    )
+    assert narrated.startswith("store_supervisor_plan tool reported:")
+    assert "plan parsing" not in narrated.lower()  # ensure Portuguese message is surfaced
+    assert "Não foi possível interpretar o plano" in narrated
+
 
 def test_mark_task_completed_without_plan_returns_error(tool_context) -> None:
     response = plan_management.mark_supervisor_task_completed("1", tool_context)
 
     assert response["status"] == "error"
     assert response["error"] == "plan_not_found"
+
+    narrated = plan_management.format_plan_tool_status(
+        "mark_supervisor_task_completed", response
+    )
+    assert narrated.startswith("mark_supervisor_task_completed tool reported:")
+    assert response["message"] in narrated
 
 
 def test_mark_task_completed_invalid_order_returns_error(tool_context) -> None:
@@ -101,6 +114,11 @@ def test_mark_task_completed_invalid_order_returns_error(tool_context) -> None:
     assert response["status"] == "error"
     assert response["error"] == "task_not_found"
 
+    narrated = plan_management.format_plan_tool_status(
+        "mark_supervisor_task_completed", response
+    )
+    assert "A tarefa informada não existe" in narrated
+
 
 def test_get_plan_status_reports_absence_of_plan(tool_context) -> None:
     status = plan_management.get_supervisor_plan_status(tool_context)
@@ -109,7 +127,6 @@ def test_get_plan_status_reports_absence_of_plan(tool_context) -> None:
     assert status["has_plan"] is False
     assert status["summary"]["total_tasks"] == 0
     assert "Nenhum plano ativo" in status["markdown"]
-
 
 def test_ensure_next_task_ready_blocks_until_prereqs_done(tool_context) -> None:
     plan_management.store_supervisor_plan(PREREQ_PLAN, tool_context)

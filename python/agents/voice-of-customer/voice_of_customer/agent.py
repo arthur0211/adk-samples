@@ -9,6 +9,7 @@ from google.adk.tools import FunctionTool
 from google.adk.tools.agent_tool import AgentTool
 
 from . import prompt
+from .shared.state import load_default_state
 from .sub_agents.data_collector.agent import data_collector_agent
 from .sub_agents.planner.agent import planner_agent
 from .sub_agents.quali.agent import quali_analyst_agent
@@ -42,6 +43,7 @@ supervisor_agent = LlmAgent(
         AgentTool(agent=quali_analyst_agent),
         AgentTool(agent=reporter_agent),
     ],
+    before_agent_callback=load_default_state,
 )
 
 root_agent = supervisor_agent

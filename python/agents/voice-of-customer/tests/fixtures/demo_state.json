@@ -1,0 +1,46 @@
+{
+  "state": {
+    "plan_metadata": {
+      "request_summary": "Diagnóstico do onboarding digital",
+      "timeframe": "Último trimestre",
+      "audience": "Liderança de CX"
+    },
+    "collected_datasets": [
+      {
+        "name": "nps_trend_dataset",
+        "timeframe": "2024-Q1",
+        "metrics": {
+          "nps": 48.0,
+          "response_count": 3200
+        }
+      }
+    ],
+    "quantitative_insights": {
+      "summary": "NPS caiu 6 pontos no trimestre com destaque para detratores em onboarding.",
+      "metrics": [
+        {
+          "name": "NPS",
+          "value": 48.0
+        }
+      ]
+    },
+    "qualitative_insights": {
+      "summary": "Clientes relatam fricção no envio de documentos e espera por aprovação.",
+      "themes": [
+        "Documentação",
+        "Tempo de aprovação"
+      ],
+      "representative_quotes": [
+        "\"Demorou muito para aprovarem minha conta.\""
+      ]
+    },
+    "reporter_handoff": {
+      "status": "ready",
+      "final_deliverable": "Relatório executivo preparado",
+      "next_steps": [
+        "Agendar apresentação com liderança",
+        "Validar plano de ação proposto"
+      ]
+    }
+  }
+}

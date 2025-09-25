@@ -263,6 +263,104 @@ def reset_supervisor_plan(tool_context: ToolContext) -> dict[str, Any]:
     }
 
 
+def format_plan_tool_status(
+    tool_name: str, response: dict[str, Any]
+) -> str:
+    """Formats tool responses so the supervisor can narrate them consistently.
+
+    The Avenue Deep Dive supervisor must read back the outputs of plan
+    management tools to the user using the pattern
+    ``"[tool_name] tool reported: ..."``.  This helper extracts the most
+    relevant fields from ``response`` to build that narration, falling back to a
+    JSON representation when a more specific summary is not available.
+
+    Args:
+        tool_name: Name of the tool that produced ``response``.
+        response: Dictionary returned by a plan management tool.
+
+    Returns:
+        A natural-language string ready to be surfaced to the user.
+    """
+
+    highlight_parts: list[str] = []
+
+    message = response.get("message")
+    if isinstance(message, str) and message:
+        highlight_parts.append(message.strip())
+
+    if response.get("status") == "error":
+        detail = response.get("detail")
+        if isinstance(detail, str) and detail:
+            highlight_parts.append(f"Detalhe: {detail.strip()}")
+        highlight_text = " ".join(part for part in highlight_parts if part)
+        if not highlight_text:
+            highlight_text = json.dumps(response, ensure_ascii=False)
+        return f"{tool_name} tool reported: {highlight_text}"
+
+    if tool_name == "store_supervisor_plan":
+        total_tasks = response.get("total_tasks")
+        pending_tasks = response.get("pending_tasks")
+        total_stages = response.get("total_stages") or response.get("stages")
+        if total_tasks is not None and pending_tasks is not None:
+            highlight_parts.append(
+                f"Total de tarefas registradas: {total_tasks}."
+                f" Pendentes: {pending_tasks}."
+            )
+        if total_stages is not None:
+            highlight_parts.append(f"Etapas no plano: {total_stages}.")
+    elif tool_name == "mark_supervisor_task_completed":
+        execution_order = response.get("execution_order")
+        total_completed = response.get("total_completed")
+        remaining_tasks = response.get("remaining_tasks")
+        completed_stages = response.get("completed_stages")
+        if execution_order is not None:
+            highlight_parts.append(
+                f"Tarefa {execution_order} marcada como concluída."
+            )
+        if total_completed is not None and remaining_tasks is not None:
+            highlight_parts.append(
+                f"Andamento: {total_completed} concluídas,"
+                f" {remaining_tasks} pendentes."
+            )
+        if completed_stages is not None:
+            highlight_parts.append(f"Etapas concluídas: {completed_stages}.")
+    elif tool_name == "get_supervisor_plan_status":
+        summary = response.get("summary")
+        if isinstance(summary, dict):
+            total_tasks = summary.get("total_tasks")
+            completed_tasks = summary.get("completed_tasks")
+            remaining_tasks = summary.get("remaining_tasks")
+            total_stages = summary.get("total_stages")
+            completed_stages = summary.get("completed_stages")
+            if (
+                total_tasks is not None
+                and completed_tasks is not None
+                and remaining_tasks is not None
+            ):
+                highlight_parts.append(
+                    "Status atual: "
+                    f"{completed_tasks}/{total_tasks} tarefas concluídas"
+                    f" ({remaining_tasks} pendentes)."
+                )
+            if total_stages is not None and completed_stages is not None:
+                highlight_parts.append(
+                    f"Etapas concluídas: {completed_stages} de {total_stages}."
+                )
+        markdown = response.get("markdown")
+        if isinstance(markdown, str) and markdown:
+            highlight_parts.append(f"Resumo formatado:\n{markdown.strip()}")
+    elif tool_name == "reset_supervisor_plan":
+        # Message already covers the important status information.
+        pass
+    else:
+        highlight_parts.append(json.dumps(response, ensure_ascii=False))
+
+    highlight_text = " ".join(part.strip() for part in highlight_parts if part)
+    if not highlight_text:
+        highlight_text = json.dumps(response, ensure_ascii=False)
+    return f"{tool_name} tool reported: {highlight_text}"
+
+
 __all__ = [
     "PlanParsingError",
     "TaskNotFoundError",

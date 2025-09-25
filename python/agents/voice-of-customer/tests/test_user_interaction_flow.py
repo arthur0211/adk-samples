@@ -127,11 +127,26 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
         assert store_response["stages"] == 2
         assert PLAN_STATE_KEY in tool_context.state
 
+        store_status_text = plan_management.format_plan_tool_status(
+            "store_supervisor_plan", store_response
+        )
+        assert store_status_text.startswith("store_supervisor_plan tool reported:")
+        assert "Plano registrado no estado do supervisor." in store_status_text
+        assert f"Pendentes: {len(orders)}" in store_status_text
+
         status_snapshot = plan_management.get_supervisor_plan_status(tool_context)
         assert status_snapshot["summary"]["total_tasks"] == len(orders)
         assert status_snapshot["summary"]["remaining_tasks"] == len(orders)
         assert "## Plano de tarefas do supervisor" in status_snapshot["markdown"]
         assert "### Etapa 1" in status_snapshot["markdown"]
+
+        status_text = plan_management.format_plan_tool_status(
+            "get_supervisor_plan_status", status_snapshot
+        )
+        assert status_text.startswith("get_supervisor_plan_status tool reported:")
+        assert "Status atual: 0/" in status_text
+        assert "Resumo formatado:" in status_text
+        assert "## Plano de tarefas do supervisor" in status_text
 
         for index, order in enumerate(orders, start=1):
             response = plan_management.mark_supervisor_task_completed(order, tool_context)
@@ -140,6 +155,12 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
             assert response["total_completed"] == index
             assert response["remaining_tasks"] == len(orders) - index
 
+            mark_text = plan_management.format_plan_tool_status(
+                "mark_supervisor_task_completed", response
+            )
+            assert mark_text.startswith("mark_supervisor_task_completed tool reported:")
+            assert f"Tarefa {order} marcada como concluída." in mark_text
+
         final_status = plan_management.get_supervisor_plan_status(tool_context)
         assert final_status["summary"]["completed_tasks"] == len(orders)
         assert final_status["summary"]["remaining_tasks"] == 0
@@ -147,8 +168,20 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
         assert "### Etapa 1 ✅" in final_status["markdown"]
         assert "### Etapa 2 ✅" in final_status["markdown"]
 
+        final_status_text = plan_management.format_plan_tool_status(
+            "get_supervisor_plan_status", final_status
+        )
+        assert "Status atual: 5/5 tarefas concluídas" in final_status_text
+        assert "Etapas concluídas: 2 de 2" in final_status_text
+
         reset_response = plan_management.reset_supervisor_plan(tool_context)
         assert reset_response["status"] == "reset"
+
+        reset_text = plan_management.format_plan_tool_status(
+            "reset_supervisor_plan", reset_response
+        )
+        assert reset_text.startswith("reset_supervisor_plan tool reported:")
+        assert reset_response["message"] in reset_text
 
     assert PLAN_STATE_KEY not in tool_context.state
 
