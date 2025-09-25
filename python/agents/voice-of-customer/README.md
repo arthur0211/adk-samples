@@ -60,6 +60,43 @@ Ao utilizar essa string diretamente na conversa, o usuário tem visibilidade
 completa do que cada ferramenta reportou.
 
 
+## Contrato de Estado Compartilhado
+
+O módulo [`shared/state.py`](voice_of_customer/shared/state.py) centraliza o
+estado compartilhado utilizado pelos subagentes. Ele inicializa a sessão com
+uma estrutura padrão contendo:
+
+- `plan_metadata`: metadados sobre o pedido em andamento (resumo, período,
+  audiência alvo).
+- `collected_datasets`: lista de datasets agregados e anonimizados coletados
+  pelo `data_collector_agent`.
+- `quantitative_insights`: resumo e métricas estruturadas geradas pelo
+  `quanti_analyst_agent`.
+- `qualitative_insights`: resumo, temas e citações representativas compiladas
+  pelo `quali_analyst_agent`.
+- `reporter_handoff`: informações finais para o `reporter_agent`, incluindo o
+  status do hand-off, entregáveis e próximos passos.
+
+O `root_agent` registra o callback `load_default_state` como
+`before_agent_callback`, garantindo que a estrutura seja carregada antes da
+primeira interação e permitindo carregar fixtures (via variável de ambiente
+`VOICE_OF_CUSTOMER_SCENARIO`) para demos ou testes.
+
+Para simplificar a persistência de resultados, expomos ferramentas em
+[`tools/shared_state.py`](voice_of_customer/tools/shared_state.py):
+
+- `record_plan_metadata`
+- `record_dataset`
+- `record_quanti_summary`
+- `record_quali_summary`
+- `record_reporter_handoff`
+- `get_reporter_snapshot`
+
+Essas funções padronizam a gravação no `ToolContext.state` e retornam metadados
+úteis (quantidade de datasets, contagem de métricas, status do hand-off etc.),
+facilitando a coordenação entre os subagentes.
+
+
 ## Testes
 
 Execute os testes unitários com:
