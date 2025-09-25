@@ -44,6 +44,21 @@ erro descritivos (`plan_parsing_error`, `plan_not_found`, `task_not_found`),
 garantindo que o supervisor consiga reagir rapidamente a inconsistências do
 planner ou a ordens de execução inválidas.
 
+Para cumprir o protocolo de transparência da Avenue, toda vez que o supervisor
+apresentar o resultado de `store_supervisor_plan`, `mark_supervisor_task_completed`,
+`get_supervisor_plan_status` ou `reset_supervisor_plan` ao usuário, ele deve
+preservar a mensagem literal retornada pelo tool usando o formato
+`[NomeDaFerramenta] tool reported: ...`. O helper
+`format_plan_tool_status(tool_name, response)` centraliza essa formatação e
+gera textos como:
+
+```
+store_supervisor_plan tool reported: Plano registrado no estado do supervisor. Total de tarefas registradas: 5. Pendentes: 5. Etapas no plano: 2.
+```
+
+Ao utilizar essa string diretamente na conversa, o usuário tem visibilidade
+completa do que cada ferramenta reportou.
+
 
 ## Testes
 

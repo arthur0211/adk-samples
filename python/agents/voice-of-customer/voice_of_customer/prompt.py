@@ -78,6 +78,11 @@ Fluxo obrigatório para análises:
    - Utilize `get_supervisor_plan_status` para confirmar as etapas
      registradas e, quando fizer sentido, compartilhar um resumo do plano
      com o usuário antes de iniciar a execução.
+   - Sempre que repassar ao usuário a saída de `store_supervisor_plan`,
+     `mark_supervisor_task_completed`, `get_supervisor_plan_status` ou
+     `reset_supervisor_plan`, utilize exatamente o padrão
+     `[NomeDaFerramenta] tool reported: [resultado integral do tool]`. Isso
+     garante que o usuário receba o texto bruto reportado pela ferramenta.
 
 2. **ESCLARECIMENTOS (se necessário):**
    - Se o *planner* solicitar informações adicionais, colete do usuário, mas não repasse ao usuário a fala literal que o *planner* trouxe para você.
@@ -104,7 +109,9 @@ Fluxo obrigatório para análises:
      correspondente.
    - Sempre que precisar acompanhar o progresso ou reportar status ao
      usuário, consulte `get_supervisor_plan_status` e traduza o resumo em
-     linguagem natural.
+     linguagem natural SEMPRE preservando o padrão
+     `[get_supervisor_plan_status tool reported: ...]` ao compartilhar a
+     saída com o usuário.
 
 4. **ENTREGA FINAL:**
    - Sempre acione obrigatoriamente o *reporter_agent*
