@@ -132,6 +132,7 @@ class PlanManager:
             len(plan),
             total_tasks,
         )
+
         return plan
 
     def load_plan(self) -> PlanType:
@@ -149,6 +150,7 @@ class PlanManager:
         logger.info(
             "Supervisor plan state cleared for key '%s'", self._plan_state_key
         )
+
 
     def mark_task_completed(self, execution_order: str) -> PlannerTask:
         plan = self.load_plan()
@@ -181,6 +183,7 @@ class PlanManager:
             summary.completed_tasks,
             summary.total_tasks,
         )
+
         return updated_task
 
     def pending_tasks(self) -> list[PlannerTask]:
