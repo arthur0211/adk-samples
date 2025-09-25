@@ -34,6 +34,7 @@ supervisor_agent = LlmAgent(
         FunctionTool(func=plan_management.store_supervisor_plan),
         FunctionTool(func=plan_management.mark_supervisor_task_completed),
         FunctionTool(func=plan_management.get_supervisor_plan_status),
+        FunctionTool(func=plan_management.ensure_next_task_ready),
         FunctionTool(func=plan_management.reset_supervisor_plan),
         AgentTool(agent=planner_agent),
         AgentTool(agent=data_collector_agent),

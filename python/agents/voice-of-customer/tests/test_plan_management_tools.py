@@ -33,6 +33,41 @@ VALID_PLAN = json.dumps(
     ]
 )
 
+PREREQ_PLAN = json.dumps(
+    [
+        {
+            "tasks": [
+                {
+                    "execution_order": 1,
+                    "task_description": "Confirmar datas de análise com o solicitante.",
+                    "agent_name": "supervisor_agent",
+                },
+                {
+                    "execution_order": 2,
+                    "task_description": "Registrar canais prioritários (chat, e-mail, telefone).",
+                    "agent_name": "supervisor_agent",
+                },
+                {
+                    "execution_order": 3,
+                    "task_description": "Validar objetivos estratégicos do estudo.",
+                    "agent_name": "supervisor_agent",
+                },
+                {
+                    "execution_order": 4,
+                    "task_description": "Consolidar base agregada de feedbacks.",
+                    "agent_name": "data_collector_agent",
+                },
+                {
+                    "execution_order": 5,
+                    "task_description": "Produzir métricas quantitativas sobre NPS.",
+                    "agent_name": "quanti_analyst_agent",
+                },
+            ],
+            "completed": False,
+        }
+    ]
+)
+
 
 @pytest.fixture()
 def tool_context():
@@ -74,3 +109,57 @@ def test_get_plan_status_reports_absence_of_plan(tool_context) -> None:
     assert status["has_plan"] is False
     assert status["summary"]["total_tasks"] == 0
     assert "Nenhum plano ativo" in status["markdown"]
+
+
+def test_ensure_next_task_ready_blocks_until_prereqs_done(tool_context) -> None:
+    plan_management.store_supervisor_plan(PREREQ_PLAN, tool_context)
+
+    response = plan_management.ensure_next_task_ready(
+        "data_collector_agent", tool_context
+    )
+
+    assert response["status"] == "blocked"
+    assert response["error"] == "prerequisites_incomplete"
+    assert len(response["blocking_tasks"]) == 3
+    assert all(
+        task["agent_name"] == "supervisor_agent"
+        for task in response["blocking_tasks"]
+    )
+    assert "datas" in response["message"]
+
+    for order in ("1", "2", "3"):
+        plan_management.mark_supervisor_task_completed(order, tool_context)
+
+    ready = plan_management.ensure_next_task_ready(
+        "data_collector_agent", tool_context
+    )
+
+    assert ready["status"] == "ready"
+    assert ready["next_task"]["agent_name"] == "data_collector_agent"
+
+
+def test_ensure_next_task_ready_requires_data_before_analysis(tool_context) -> None:
+    plan_management.store_supervisor_plan(PREREQ_PLAN, tool_context)
+
+    for order in ("1", "2", "3"):
+        plan_management.mark_supervisor_task_completed(order, tool_context)
+
+    response = plan_management.ensure_next_task_ready(
+        "quanti_analyst_agent", tool_context
+    )
+
+    assert response["status"] == "blocked"
+    assert response["error"] == "data_not_ready"
+    assert all(
+        task["agent_name"] == "data_collector_agent"
+        for task in response["blocking_tasks"]
+    )
+
+    plan_management.mark_supervisor_task_completed("4", tool_context)
+
+    ready = plan_management.ensure_next_task_ready(
+        "quanti_analyst_agent", tool_context
+    )
+
+    assert ready["status"] == "ready"
+    assert ready["next_task"]["agent_name"] == "quanti_analyst_agent"

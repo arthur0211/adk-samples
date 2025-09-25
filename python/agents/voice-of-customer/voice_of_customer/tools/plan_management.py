@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 
 from google.adk.tools import ToolContext
 
@@ -12,6 +12,24 @@ from ..shared.plan import (
     PlanParsingError,
     TaskNotFoundError,
 )
+
+
+def _task_sort_key(task: "PlannerTaskLike") -> Tuple[int, Any]:
+    """Returns a tuple used to order tasks by execution priority."""
+
+    try:
+        return (0, int(task.execution_order))
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return (1, str(task.execution_order))
+
+
+class PlannerTaskLike:
+    """Protocol-lite helper for typing without importing PlannerTask."""
+
+    execution_order: str
+    task_description: str
+    agent_name: str
+    task_completed: bool
 
 
 def store_supervisor_plan(plan: str, tool_context: ToolContext) -> dict[str, Any]:
@@ -115,6 +133,122 @@ def get_supervisor_plan_status(tool_context: ToolContext) -> dict[str, Any]:
     }
 
 
+def ensure_next_task_ready(
+    agent_name: str, tool_context: ToolContext
+) -> dict[str, Any]:
+    """Validates if the requested agent can take the next task in sequence."""
+
+    manager = PlanManager(tool_context.state)
+    plan = manager.load_plan()
+    if not plan:
+        return {
+            "status": "error",
+            "error": "plan_not_found",
+            "message": (
+                "Nenhum plano ativo foi encontrado. Acione o planner_agent antes de "
+                "delegar tarefas a outros agentes."
+            ),
+        }
+
+    pending_tasks = sorted(manager.pending_tasks(), key=_task_sort_key)
+    if not pending_tasks:
+        return {
+            "status": "ready",
+            "message": (
+                "Não há tarefas pendentes. O agente pode ser acionado apenas se houver "
+                "novo trabalho registrado pelo planner."
+            ),
+            "blocking_tasks": [],
+        }
+
+    matching_tasks = [
+        task for task in pending_tasks if task.agent_name == agent_name
+    ]
+    if not matching_tasks:
+        return {
+            "status": "error",
+            "error": "agent_not_in_plan",
+            "message": (
+                "O plano atual não possui tarefas pendentes para o agente informado. "
+                "Confira o to-do e confirme qual agente deve ser acionado."
+            ),
+            "blocking_tasks": [task.to_dict() for task in pending_tasks],
+        }
+
+    target_task = matching_tasks[0]
+    target_order = _task_sort_key(target_task)
+    blocking_tasks = [
+        task
+        for task in pending_tasks
+        if _task_sort_key(task) < target_order and not task.task_completed
+    ]
+
+    if not blocking_tasks:
+        return {
+            "status": "ready",
+            "message": (
+                "Tarefas do agente {agent} liberadas para execução.".format(
+                    agent=agent_name
+                )
+            ),
+            "next_task": target_task.to_dict(),
+            "blocking_tasks": [],
+            "remaining_tasks": len(pending_tasks),
+        }
+
+    supervisor_blockers = [
+        task for task in blocking_tasks if task.agent_name == "supervisor_agent"
+    ]
+    data_collection_blockers = [
+        task for task in blocking_tasks if task.agent_name == "data_collector_agent"
+    ]
+
+    if supervisor_blockers:
+        return {
+            "status": "blocked",
+            "error": "prerequisites_incomplete",
+            "message": (
+                "Existem tarefas de esclarecimento pendentes (datas, canais ou objetivos) "
+                "que precisam ser concluídas antes de acionar o agente {agent}."
+            ).format(agent=agent_name),
+            "blocking_tasks": [task.to_dict() for task in supervisor_blockers],
+            "actionable_next_steps": [
+                "Finalize as tarefas do supervisor relacionadas a datas, canais e objetivos.",
+                "Confirme as informações com o solicitante e registre a conclusão no plano.",
+            ],
+        }
+
+    if data_collection_blockers and agent_name in {
+        "quanti_analyst_agent",
+        "quali_analyst_agent",
+    }:
+        return {
+            "status": "blocked",
+            "error": "data_not_ready",
+            "message": (
+                "Os dados necessários ainda não foram coletados. Aguarde a conclusão das "
+                "tarefas de coleta antes de prosseguir com {agent}."
+            ).format(agent=agent_name),
+            "blocking_tasks": [task.to_dict() for task in data_collection_blockers],
+            "actionable_next_steps": [
+                "Coordene a conclusão das tarefas de coleta de dados pendentes.",
+                "Somente avance para análises após confirmar que os datasets foram registrados.",
+            ],
+        }
+
+    return {
+        "status": "blocked",
+        "error": "out_of_order",
+        "message": (
+            "Há tarefas anteriores pendentes. Complete-as antes de acionar o agente {agent}."
+        ).format(agent=agent_name),
+        "blocking_tasks": [task.to_dict() for task in blocking_tasks],
+        "actionable_next_steps": [
+            "Siga a ordem definida pelo planner e marque as tarefas anteriores como concluídas.",
+        ],
+    }
+
+
 def reset_supervisor_plan(tool_context: ToolContext) -> dict[str, Any]:
     """Clears the stored plan so a new request can start."""
 
@@ -132,6 +266,7 @@ def reset_supervisor_plan(tool_context: ToolContext) -> dict[str, Any]:
 __all__ = [
     "PlanParsingError",
     "TaskNotFoundError",
+    "ensure_next_task_ready",
     "get_supervisor_plan_status",
     "mark_supervisor_task_completed",
     "reset_supervisor_plan",
