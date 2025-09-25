@@ -39,6 +39,11 @@ O arquivo [`shared/plan.py`](voice_of_customer/shared/plan.py) contém a classe
 As funções expostas em [`tools/plan_management.py`](voice_of_customer/tools/plan_management.py)
 fornecem **FunctionTools** que o supervisor pode chamar durante a execução para
 registrar o plano, atualizar tarefas, consultar o status ou resetar o workflow.
+Cada função responde com metadados estruturados (como `has_plan`) e códigos de
+erro descritivos (`plan_parsing_error`, `plan_not_found`, `task_not_found`),
+garantindo que o supervisor consiga reagir rapidamente a inconsistências do
+planner ou a ordens de execução inválidas.
+
 
 ## Testes
 
@@ -49,5 +54,7 @@ cd python/agents/voice-of-customer
 pytest
 ```
 
-Os testes cobrem os fluxos críticos do `PlanManager`, garantindo que o estado do
-supervisor reflita corretamente a lista de tarefas do planner.
+Os testes cobrem os fluxos críticos do `PlanManager` e das ferramentas de plano
+do supervisor, garantindo que o estado reflita corretamente a lista de tarefas,
+que o markdown esteja alinhado ao progresso real e que erros de parsing ou
+ordens inválidas sejam reportados de forma previsível.

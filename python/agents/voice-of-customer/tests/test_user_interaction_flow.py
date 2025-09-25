@@ -12,7 +12,6 @@ from typing import Any
 
 import pytest
 
-
 # Provide a lightweight stub of google.adk ToolContext when the dependency is not installed.
 if "google" not in sys.modules:  # pragma: no cover - import guard for test environments
     google_module = types.ModuleType("google")

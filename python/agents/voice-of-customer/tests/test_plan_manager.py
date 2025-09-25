@@ -61,6 +61,38 @@ Plano gerado pelo planner:
 ]
 """
 
+INCONSISTENT_PLAN = """
+[
+    {
+        "tasks": [
+            {
+                "execution_order": 1,
+                "task_description": "Verificar briefing inicial.",
+                "agent_name": "supervisor_agent",
+                "task_completed": true
+            },
+            {
+                "execution_order": 2,
+                "task_description": "Levantar métricas quantitativas.",
+                "agent_name": "quanti_analyst_agent",
+                "task_completed": true
+            }
+        ],
+        "completed": false
+    },
+    {
+        "tasks": [
+            {
+                "execution_order": 3,
+                "task_description": "Classificar sentimentos em feedbacks.",
+                "agent_name": "quali_analyst_agent",
+                "task_completed": false
+            }
+        ],
+        "completed": true
+    }
+]
+"""
 
 @pytest.fixture
 def manager_state() -> tuple[PlanManager, dict]:
@@ -137,3 +169,34 @@ def test_reset_plan_clears_state(manager_state: tuple[PlanManager, dict]) -> Non
     manager.reset_plan()
     assert PLAN_STATE_KEY not in state
     assert f"{PLAN_STATE_KEY}_raw" not in state
+
+def test_summary_without_plan_returns_zero_metrics(
+    manager_state: tuple[PlanManager, dict]
+) -> None:
+    manager, _ = manager_state
+
+    summary = manager.summary()
+    assert summary.total_tasks == 0
+    assert summary.completed_tasks == 0
+    assert summary.remaining_tasks == 0
+    assert summary.total_stages == 0
+    assert summary.completed_stages == 0
+
+
+def test_render_plan_markdown_without_plan(
+    manager_state: tuple[PlanManager, dict]
+) -> None:
+    manager, _ = manager_state
+
+    markdown = manager.render_plan_markdown()
+    assert markdown == "Nenhum plano ativo. Acione o planner_agent primeiro."
+
+
+def test_stage_completion_refreshes_based_on_tasks(
+    manager_state: tuple[PlanManager, dict]
+) -> None:
+    manager, _ = manager_state
+
+    plan = manager.set_plan_from_text(INCONSISTENT_PLAN)
+    assert plan[0].completed is True
+    assert plan[1].completed is False

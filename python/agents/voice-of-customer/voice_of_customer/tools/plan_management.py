@@ -26,7 +26,20 @@ def store_supervisor_plan(plan: str, tool_context: ToolContext) -> dict[str, Any
     """
 
     manager = PlanManager(tool_context.state)
-    parsed_plan = manager.set_plan_from_text(plan)
+
+    try:
+        parsed_plan = manager.set_plan_from_text(plan)
+    except PlanParsingError as exc:
+        return {
+            "status": "error",
+            "error": "plan_parsing_error",
+            "message": (
+                "Não foi possível interpretar o plano fornecido pelo planner. "
+                "Solicite um novo plano antes de prosseguir."
+            ),
+            "detail": str(exc),
+        }
+
     summary = manager.summary()
     return {
         "status": "stored",
@@ -38,6 +51,7 @@ def store_supervisor_plan(plan: str, tool_context: ToolContext) -> dict[str, Any
         "plan_preview": manager.plan_as_dict(),
         "raw_payload_length": len(plan),
         "stages": len(parsed_plan),
+        "has_plan": bool(parsed_plan),
     }
 
 
@@ -47,7 +61,29 @@ def mark_supervisor_task_completed(
     """Marks the task identified by ``execution_order`` as completed."""
 
     manager = PlanManager(tool_context.state)
-    task = manager.mark_task_completed(execution_order)
+    try:
+        task = manager.mark_task_completed(execution_order)
+    except PlanParsingError as exc:
+        return {
+            "status": "error",
+            "error": "plan_not_found",
+            "message": (
+                "Nenhum plano ativo foi encontrado. Acione o planner_agent antes de "
+                "tentar concluir tarefas."
+            ),
+            "detail": str(exc),
+        }
+    except TaskNotFoundError as exc:
+        return {
+            "status": "error",
+            "error": "task_not_found",
+            "message": (
+                "A tarefa informada não existe no plano atual. Confira a ordem de "
+                "execução e tente novamente."
+            ),
+            "detail": str(exc),
+        }
+
     summary = manager.summary()
     return {
         "status": "task_completed",
@@ -74,6 +110,8 @@ def get_supervisor_plan_status(tool_context: ToolContext) -> dict[str, Any]:
         "plan": plan,
         "summary": summary.as_dict(),
         "markdown": manager.render_plan_markdown(),
+        "has_plan": bool(plan),
+
     }
 
 
