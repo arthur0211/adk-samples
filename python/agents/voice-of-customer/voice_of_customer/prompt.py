@@ -110,7 +110,6 @@ Fluxo obrigatório para análises:
    - Sempre acione obrigatoriamente o *reporter_agent*
    - Apresente o resultado final ao usuário
    - Mantenha-se disponível para follow-ups
-
 </ANALYSIS_PROCEDURE>  
 
 <TOOL_USAGE_SUMMARY>  
@@ -136,7 +135,6 @@ Fluxo obrigatório para análises:
    - Execute a ferramenta `reset_supervisor_plan` para limpar o estado
      antes de iniciar um novo atendimento.
    - Reinicie todo o fluxo multi-agente conforme as instruções do ANALYSIS_PROCEDURE
-
 </CONSTRAINTS>
 """
 

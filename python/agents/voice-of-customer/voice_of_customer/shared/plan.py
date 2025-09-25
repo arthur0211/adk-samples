@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import MutableMapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 PLAN_STATE_KEY = "supervisor_plan"
 RAW_PLAN_STATE_KEY_SUFFIX = "_raw"
+
+
+logger = logging.getLogger(__name__)
 
 
 class PlanParsingError(ValueError):
@@ -122,6 +126,13 @@ class PlanManager:
     def set_plan_from_text(self, planner_output: str) -> PlanType:
         plan = self._parse_plan_text(planner_output)
         self._persist_plan(plan, raw_text=planner_output)
+        total_tasks = sum(len(stage.tasks) for stage in plan)
+        logger.info(
+            "Stored supervisor plan with %d stages and %d tasks",
+            len(plan),
+            total_tasks,
+        )
+
         return plan
 
     def load_plan(self) -> PlanType:
@@ -136,6 +147,10 @@ class PlanManager:
     def reset_plan(self) -> None:
         self._state.pop(self._plan_state_key, None)
         self._state.pop(self._raw_plan_key, None)
+        logger.info(
+            "Supervisor plan state cleared for key '%s'", self._plan_state_key
+        )
+
 
     def mark_task_completed(self, execution_order: str) -> PlannerTask:
         plan = self.load_plan()
@@ -161,6 +176,14 @@ class PlanManager:
             )
 
         self._persist_plan(plan)
+        summary = self.summary()
+        logger.info(
+            "Marked task %s as completed (%d/%d tasks finished)",
+            updated_task.execution_order,
+            summary.completed_tasks,
+            summary.total_tasks,
+        )
+
         return updated_task
 
     def pending_tasks(self) -> list[PlannerTask]:
