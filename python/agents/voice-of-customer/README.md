@@ -44,6 +44,7 @@ erro descritivos (`plan_parsing_error`, `plan_not_found`, `task_not_found`),
 garantindo que o supervisor consiga reagir rapidamente a inconsistências do
 planner ou a ordens de execução inválidas.
 
+
 ## Testes
 
 Execute os testes unitários com:

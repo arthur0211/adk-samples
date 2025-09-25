@@ -61,7 +61,6 @@ def mark_supervisor_task_completed(
     """Marks the task identified by ``execution_order`` as completed."""
 
     manager = PlanManager(tool_context.state)
-
     try:
         task = manager.mark_task_completed(execution_order)
     except PlanParsingError as exc:
@@ -112,6 +111,7 @@ def get_supervisor_plan_status(tool_context: ToolContext) -> dict[str, Any]:
         "summary": summary.as_dict(),
         "markdown": manager.render_plan_markdown(),
         "has_plan": bool(plan),
+
     }
 
 

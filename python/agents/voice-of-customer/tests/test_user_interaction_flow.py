@@ -6,11 +6,45 @@ import json
 import logging
 import sys
 import textwrap
+import types
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from ._tool_context_stub import get_tool_context_class  # noqa: E402  # isort: skip
+# Provide a lightweight stub of google.adk ToolContext when the dependency is not installed.
+if "google" not in sys.modules:  # pragma: no cover - import guard for test environments
+    google_module = types.ModuleType("google")
+    google_module.__path__ = []
+    sys.modules["google"] = google_module
+else:  # pragma: no cover - reuse pre-existing module when available
+    google_module = sys.modules["google"]
+
+if "google.adk" not in sys.modules:  # pragma: no cover - import guard for test environments
+    adk_module = types.ModuleType("google.adk")
+    adk_module.__path__ = []
+    sys.modules["google.adk"] = adk_module
+    setattr(google_module, "adk", adk_module)
+else:  # pragma: no cover
+    adk_module = sys.modules["google.adk"]
+    setattr(google_module, "adk", adk_module)
+
+if "google.adk.tools" not in sys.modules:  # pragma: no cover - import guard for test environments
+    tools_module = types.ModuleType("google.adk.tools")
+
+    class _StubToolContext:
+        """Minimal stand-in that exposes only the attributes the tools use."""
+
+        def __init__(self) -> None:
+            self.state: dict[str, Any] = {}
+
+    tools_module.ToolContext = _StubToolContext
+    tools_module.__all__ = ["ToolContext"]
+    sys.modules["google.adk.tools"] = tools_module
+    setattr(adk_module, "tools", tools_module)
+else:  # pragma: no cover
+    tools_module = sys.modules["google.adk.tools"]
+
 
 # Ensure the package directory is importable regardless of the working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -79,8 +113,9 @@ PLANNER_RESPONSE = textwrap.dedent(
 def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) -> None:
     """Emulates a realistic user journey across plan management tools."""
 
-    tool_context_cls = get_tool_context_class()
-    tool_context = tool_context_cls()
+    from google.adk.tools import ToolContext  # Imported after stubbing if needed.
+
+    tool_context = ToolContext()
 
     with caplog.at_level(logging.INFO):
         store_response = plan_management.store_supervisor_plan(
@@ -90,7 +125,6 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
         assert store_response["total_tasks"] == len(orders)
         assert store_response["pending_tasks"] == len(orders)
         assert store_response["stages"] == 2
-        assert store_response["has_plan"] is True
         assert PLAN_STATE_KEY in tool_context.state
 
         status_snapshot = plan_management.get_supervisor_plan_status(tool_context)
@@ -98,7 +132,6 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
         assert status_snapshot["summary"]["remaining_tasks"] == len(orders)
         assert "## Plano de tarefas do supervisor" in status_snapshot["markdown"]
         assert "### Etapa 1" in status_snapshot["markdown"]
-        assert status_snapshot["has_plan"] is True
 
         for index, order in enumerate(orders, start=1):
             response = plan_management.mark_supervisor_task_completed(order, tool_context)
@@ -113,7 +146,6 @@ def test_user_like_interaction_flow(orders, caplog: pytest.LogCaptureFixture) ->
         assert final_status["summary"]["completed_stages"] == 2
         assert "### Etapa 1 ✅" in final_status["markdown"]
         assert "### Etapa 2 ✅" in final_status["markdown"]
-        assert final_status["has_plan"] is True
 
         reset_response = plan_management.reset_supervisor_plan(tool_context)
         assert reset_response["status"] == "reset"

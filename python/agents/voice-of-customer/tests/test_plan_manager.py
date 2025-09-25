@@ -94,7 +94,6 @@ INCONSISTENT_PLAN = """
 ]
 """
 
-
 @pytest.fixture
 def manager_state() -> tuple[PlanManager, dict]:
     state: dict = {}
@@ -170,7 +169,6 @@ def test_reset_plan_clears_state(manager_state: tuple[PlanManager, dict]) -> Non
     manager.reset_plan()
     assert PLAN_STATE_KEY not in state
     assert f"{PLAN_STATE_KEY}_raw" not in state
-
 
 def test_summary_without_plan_returns_zero_metrics(
     manager_state: tuple[PlanManager, dict]
